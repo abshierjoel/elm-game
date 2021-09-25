@@ -2,8 +2,26 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (Html, button, div, h1, img, text)
-import Html.Attributes exposing (class, classList, src)
+import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
+import List exposing (all, any)
+import List.Extra exposing (transpose)
+import List.Split exposing (chunksOfLeft)
+import Maybe exposing (withDefault)
+
+
+
+---- PROGRAM ----
+
+
+main : Program () Model Msg
+main =
+    Browser.element
+        { view = view
+        , init = \_ -> init
+        , update = update
+        , subscriptions = always Sub.none
+        }
 
 
 
@@ -18,15 +36,15 @@ init =
 initialModel : Model
 initialModel =
     { tiles =
-        [ ( 0, Maybe.Nothing )
-        , ( 1, Maybe.Nothing )
-        , ( 2, Maybe.Nothing )
-        , ( 3, Maybe.Nothing )
-        , ( 4, Maybe.Nothing )
-        , ( 5, Maybe.Nothing )
-        , ( 6, Maybe.Nothing )
-        , ( 7, Maybe.Nothing )
-        , ( 8, Maybe.Nothing )
+        [ ( 0, Empty )
+        , ( 1, Empty )
+        , ( 2, Empty )
+        , ( 3, Empty )
+        , ( 4, Empty )
+        , ( 5, Empty )
+        , ( 6, Empty )
+        , ( 7, Empty )
+        , ( 8, Empty )
         ]
     , turn = Ex
     }
@@ -37,7 +55,7 @@ initialModel =
 
 
 type alias Model =
-    { tiles : List ( Int, Maybe Tile )
+    { tiles : List ( Int, Tile )
     , turn : Tile
     }
 
@@ -45,6 +63,12 @@ type alias Model =
 type Tile
     = Ex
     | Oh
+    | Empty
+
+
+type Player
+    = Exes
+    | Ohs
 
 
 
@@ -62,17 +86,30 @@ update msg model =
             ( makeMove model pos, Cmd.none )
 
 
+isWinner : Tile -> List ( Int, Tile ) -> Bool
+isWinner player spaces =
+    all (\t -> t == True)
+        [ spaces |> chunksOfLeft 3 |> any (allListMatches player)
+        , spaces |> chunksOfLeft 3 |> transpose |> any (allListMatches player)
+        ]
+
+
+allListMatches : Tile -> List ( Int, Tile ) -> Bool
+allListMatches player list =
+    all (\item -> Tuple.second item == player) list
+
+
 makeMove : Model -> Int -> Model
 makeMove model pos =
     { model | turn = otherTurn model.turn, tiles = clickTile model.turn pos model.tiles }
 
 
-clickTile : Tile -> Int -> List ( Int, Maybe Tile ) -> List ( Int, Maybe Tile )
+clickTile : Tile -> Int -> List ( Int, Tile ) -> List ( Int, Tile )
 clickTile player pos tiles =
     List.map
         (\( p, tile ) ->
             if p == pos then
-                ( p, Just player )
+                ( p, player )
 
             else
                 ( p, tile )
@@ -89,6 +126,9 @@ otherTurn player =
         Oh ->
             Ex
 
+        Empty ->
+            Empty
+
 
 
 ---- VIEW ----
@@ -101,19 +141,19 @@ view model =
         ]
 
 
-viewBoard : List ( Int, Maybe Tile ) -> Html Msg
+viewBoard : List ( Int, Tile ) -> Html Msg
 viewBoard tiles =
     div [ class "ttt-board" ] (List.map viewTile tiles)
 
 
-viewTile : ( Int, Maybe Tile ) -> Html Msg
+viewTile : ( Int, Tile ) -> Html Msg
 viewTile ( pos, tile ) =
     case tile of
-        Just t ->
-            viewFilledTile t
-
-        Nothing ->
+        Empty ->
             viewEmptyTile pos
+
+        _ ->
+            viewFilledTile tile
 
 
 viewEmptyTile : Int -> Html Msg
@@ -135,6 +175,9 @@ getTileClass tile =
         Oh ->
             "oh"
 
+        Empty ->
+            "empty"
+
 
 getTileText : Tile -> String
 getTileText tile =
@@ -145,16 +188,5 @@ getTileText tile =
         Oh ->
             "O"
 
-
-
----- PROGRAM ----
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { view = view
-        , init = \_ -> init
-        , update = update
-        , subscriptions = always Sub.none
-        }
+        Empty ->
+            ""
